@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyFlow — Pametni Planer Učenja | BizKod Mini AI Challenge</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Inter & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            display: ['Plus Jakarta Sans', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Glatke tranzicije i prilagođeni stilovi za slider i animacije */
+    body {
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px;
+      background-color: #4f46e5;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+      background-color: #4338ca;
+    }
+
+    .task-card {
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .task-card:hover {
+      transform: translateY(-1px);
+    }
+
+    @keyframes fadeSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-fade-up {
+      animation: fadeSlideUp 0.35s ease-out forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Gornja navigacija (Header) -->
+  <header class="bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+          <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-display font-bold text-lg tracking-tight text-slate-900">StudyFlow</span>
+            <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+              BizKod AI Challenge
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 hidden sm:block">Pametni planer pripreme ispita</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button
+          id="quickDemoBtn"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-colors"
+          title="Popuni primerom predmeta za brzo testiranje"
+        >
+          <i data-lucide="sparkles" class="w-4 h-4"></i>
+          <span>Brzi primer</span>
+        </button>
+
+        <button
+          id="resetAllBtn"
+          type="button"
+          class="inline-flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+          title="Obriši trenutni plan i kreni ispočetka"
+        >
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Resetuj</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Glavni sadržaj -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
+    
+    <!-- Toast obaveštenje (umesto alert-a) -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+      
+      <!-- LEVA KOLONA: Forma za unos parametara (5 kolona na desktopu) -->
+      <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-7">
+        <div class="mb-6">
+          <h1 class="font-display text-xl sm:text-2xl font-bold text-slate-900">
+            Kreiraj plan učenja
+          </h1>
+          <p class="text-sm text-slate-500 mt-1">
+            Unesi detalje o ispitu i raspoloživo vreme, a aplikacija će automatski rasporediti gradivo po fazama.
+          </p>
+        </div>
+
+        <form id="studyForm" class="space-y-5" novalidate>
+          <!-- Naziv predmeta -->
+          <div>
+            <label for="subjectName" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              Naziv predmeta <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="book-open" class="w-4 h-4"></i>
+              </div>
+              <input
+                type="text"
+                id="subjectName"
+                placeholder="npr. Objektno orijentisano programiranje"
+                required
+                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <p id="subjectError" class="hidden text-xs text-rose-600 mt-1.5 flex items-center gap-1">
+              <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+              <span>Unesi naziv predmeta da bismo kreirali plan.</span>
+            </p>
+          </div>
+
+          <!-- Datum ispita -->
+          <div>
+            <label for="examDate" class="block text-sm font-semibold text-slate-700 mb-1.5">
+              Datum ispita <span class="text-rose-500">*</span>
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                <i data-lucide="calendar" class="w-4 h-4"></i>
+              </div>
+              <input
+                type="date"
+                id="examDate"
+                required
+                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              />
+            </div>
+            <p id="dateError" class="hidden text-xs text-rose-600 mt-1.5 flex items-center gap-1">
+              <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+              <span>Datum ispita mora biti najmanje sutrašnji datum.</span>
+            </p>
+          </div>
+
+          <!-- Broj sati nedeljno -->
+          <div class="bg-slate-50/90 border border-slate-200/80 rounded-xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <label for="weeklyHours" class="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <i data-lucide="clock" class="w-4 h-4 text-indigo-600"></i>
+                <span>Sati učenja nedeljno</span>
+              </label>
+              <div class="flex items-center gap-1 bg-white border border-indigo-100 px-2.5 py-1 rounded-lg shadow-xs">
+                <input
+                  type="number"
+                  id="weeklyHoursInput"
+                  min="2"
+                  max="50"
+                  value="12"
+                  class="w-11 text-right font-display font-bold text-indigo-600 text-sm focus:outline-none"
+                />
+                <span class="text-xs font-medium text-slate-500">h/ned</span>
+              </div>
+            </div>
+            
+            <input
+              type="range"
+              id="weeklyHours"
+              min="2"
+              max="40"
+              value="12"
+              class="w-full my-2"
+            />
+            
+            <div class="flex justify-between text-[11px] text-slate-400 font-medium">
+              <span>Lagani tempo (2h)</span>
+              <span>Umereno (15h)</span>
+              <span>Intenzivno (40h)</span>
+            </div>
+          </div>
+
+          <!-- Tip / Fokus ispita -->
+          <div>
+            <label class="block text-sm font-semibold text-slate-700 mb-2">
+              Tip ispita / Fokus pripreme
+            </label>
+            <div class="grid grid-cols-3 gap-2" id="focusSelector">
+              <button
+                type="button"
+                data-focus="kombinovano"
+                class="focus-btn active flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all border-indigo-600 bg-indigo-50/70 text-indigo-700"
+              >
+                <i data-lucide="layers" class="w-4 h-4 mb-1"></i>
+                <span class="text-xs font-semibold">Kombinovano</span>
+              </button>
+              <button
+                type="button"
+                data-focus="teorija"
+                class="focus-btn flex flex-col items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-center transition-all"
+              >
+                <i data-lucide="book-marked" class="w-4 h-4 mb-1"></i>
+                <span class="text-xs font-semibold">Teorija</span>
+              </button>
+              <button
+                type="button"
+                data-focus="prakticno"
+                class="focus-btn flex flex-col items-center justify-center p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 text-center transition-all"
+              >
+                <i data-lucide="code-2" class="w-4 h-4 mb-1"></i>
+                <span class="text-xs font-semibold">Zadaci / Kod</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dugme za generisanje -->
+          <button
+            type="submit"
+            class="w-full py-3 px-5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-semibold text-sm rounded-xl shadow-md shadow-indigo-600/20 flex items-center justify-center gap-2 transition-all"
+          >
+            <i data-lucide="wand-2" class="w-4 h-4"></i>
+            <span>Generiši personalizovani plan</span>
+          </button>
+        </form>
+      </section>
+
+      <!-- DESNA KOLONA: Generisani plan učenja i praćenje napretka (7 kolona) -->
+      <section class="lg:col-span-7 space-y-6">
+        
+        <!-- Empty State (Prikazuje se pre prvog generisanja ako nema sačuvanog plana) -->
+        <div id="emptyState" class="bg-white rounded-2xl border border-dashed border-slate-300 p-8 sm:p-12 text-center">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="calendar-check-2" class="w-7 h-7"></i>
+          </div>
+          <h2 class="font-display text-lg font-bold text-slate-900">
+            Tvoj plan učenja čeka na generisanje
+          </h2>
+          <p class="text-sm text-slate-500 max-w-md mx-auto mt-1.5 mb-6">
+            Popuni formu sa leve strane ili klikni na <strong>"Brzi primer"</strong> u gornjem desnom uglu da odmah vidiš kako aplikacija raspoređuje obaveze do ispita.
+          </p>
+          <button
+            type="button"
+            onclick="loadDemoExample()"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium transition-colors"
+          >
+            <i data-lucide="play" class="w-4 h-4"></i>
+            <span>Učitaj demo primer (Baze podataka)</span>
+          </button>
+        </div>
+
+        <!-- Prikaz generisanog plana (skriven dok se ne kreira) -->
+        <div id="planContainer" class="hidden space-y-6 animate-fade-up">
+          
+          <!-- Zaglavlje plana + Statistika -->
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100">
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span id="planFocusBadge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    Kombinovano
+                  </span>
+                  <span id="planExamDateText" class="text-xs font-medium text-slate-500 flex items-center gap-1">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+                    <span>Ispit: —</span>
+                  </span>
+                </div>
+                <h2 id="planSubjectTitle" class="font-display text-xl sm:text-2xl font-bold text-slate-900 mt-1.5">
+                  Naziv predmeta
+                </h2>
+              </div>
+
+              <!-- Progress indikator -->
+              <div class="sm:text-right shrink-0">
+                <div class="flex items-baseline sm:justify-end gap-1.5">
+                  <span id="progressPercent" class="font-display text-2xl font-extrabold text-emerald-600">0%</span>
+                  <span class="text-xs font-medium text-slate-500">završeno</span>
+                </div>
+                <p id="progressCountText" class="text-xs text-slate-400 mt-0.5">0 od 0 aktivnosti</p>
+              </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden my-4">
+              <div
+                id="progressBarFill"
+                class="h-full bg-gradient-to-r from-indigo-600 to-emerald-500 rounded-full transition-all duration-500 ease-out"
+                style="width: 0%"
+              ></div>
+            </div>
+
+            <!-- 3 ključne metrike -->
+            <div class="grid grid-cols-3 gap-3 pt-1">
+              <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p class="text-[11px] sm:text-xs font-medium text-slate-500">Preostalo dana</p>
+                <p id="metricDays" class="font-display text-lg sm:text-xl font-bold text-slate-900 mt-0.5">14</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p class="text-[11px] sm:text-xs font-medium text-slate-500">Ukupan fond sati</p>
+                <p id="metricTotalHours" class="font-display text-lg sm:text-xl font-bold text-indigo-600 mt-0.5">24h</p>
+              </div>
+              <div class="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                <p class="text-[11px] sm:text-xs font-medium text-slate-500">Prosek dnevno</p>
+                <p id="metricDailyAvg" class="font-display text-lg sm:text-xl font-bold text-slate-900 mt-0.5">1.7h</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista faza i aktivnosti -->
+          <div class="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="font-display text-base sm:text-lg font-bold text-slate-900">
+                  Predlog plana učenja po fazama
+                </h3>
+                <p class="text-xs text-slate-500">
+                  Klikni na polje pored aktivnosti da je označiš kao završenu.
+                </p>
+              </div>
+            </div>
+
+            <!-- Dinamička lista aktivnosti -->
+            <div id="tasksList" class="space-y-3"></div>
+
+            <!-- Dodavanje sopstvene aktivnosti -->
+            <form id="addCustomTaskForm" class="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                id="customTaskInput"
+                placeholder="Dodaj svoju aktivnost (npr. Preći skriptu iz 4. poglavlja)..."
+                class="flex-1 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              />
+              <button
+                type="submit"
+                class="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition-colors shrink-0"
+              >
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>Dodaj stavku</span>
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-200/80 bg-white py-4 mt-auto">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+      <p>StudyFlow AI Planer — Kreirano za <strong>BizKod</strong> Mini AI Challenge</p>
+      <p>Podaci se automatski čuvaju u tvom pregledaču (LocalStorage)</p>
+    </div>
+  </footer>
+
+  <!-- Aplikativna logika -->
+  <script>
+    // Inicijalizacija stanja aplikacije
+    const STORAGE_KEY = 'bizkod_studyflow_plan_v1';
+
+    let appState = {
+      subject: '',
+      examDate: '',
+      weeklyHours: 12,
+      focus: 'kombinovano',
+      tasks: []
+    };
+
+    // DOM elementi
+    const studyForm = document.getElementById('studyForm');
+    const subjectNameInput = document.getElementById('subjectName');
+    const examDateInput = document.getElementById('examDate');
+    const weeklyHoursSlider = document.getElementById('weeklyHours');
+    const weeklyHoursInput = document.getElementById('weeklyHoursInput');
+    const focusButtons = document.querySelectorAll('.focus-btn');
+
+    const emptyState = document.getElementById('emptyState');
+    const planContainer = document.getElementById('planContainer');
+    const tasksList = document.getElementById('tasksList');
+    const addCustomTaskForm = document.getElementById('addCustomTaskForm');
+    const customTaskInput = document.getElementById('customTaskInput');
+
+    // Postavljanje minimalnog datuma (sutra) i podrazumevanog datuma (+14 dana)
+    function initDefaultDates() {
+      const today = new Date();
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+      const minDateStr = formatDateISO(tomorrow);
+      examDateInput.min = minDateStr;
+
+      const defaultTarget = new Date(today);
+      defaultTarget.setDate(today.getDate() + 14);
+      examDateInput.value = formatDateISO(defaultTarget);
+    }
+
+    function formatDateISO(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateSerbian(isoDateStr) {
+      if (!isoDateStr) return '';
+      const [y, m, d] = isoDateStr.split('-');
+      const months = [
+        'januar', 'februar', 'mart', 'april', 'maj', 'jun',
+        'jul', 'avgust', 'septembar', 'oktobar', 'novembar', 'decembar'
+      ];
+      return `${parseInt(d, 10)}. ${months[parseInt(m, 10) - 1]} ${y}.`;
+    }
+
+    // Sinhronizacija slidera i numeričkog polja za sate
+    weeklyHoursSlider.addEventListener('input', (e) => {
+      weeklyHoursInput.value = e.target.value;
+    });
+
+    weeklyHoursInput.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value, 10);
+      if (isNaN(val)) return;
+      if (val < 1) val = 1;
+      if (val > 60) val = 60;
+      weeklyHoursSlider.value = Math.min(40, Math.max(2, val));
+    });
+
+    // Odabir fokusa pripreme
+    focusButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        focusButtons.forEach(b => {
+          b.classList.remove('active', 'border-indigo-600', 'bg-indigo-50/70', 'text-indigo-700');
+          b.classList.add('border-slate-200', 'bg-white', 'text-slate-600');
+        });
+        btn.classList.add('active', 'border-indigo-600', 'bg-indigo-50/70', 'text-indigo-700');
+        btn.classList.remove('border-slate-200', 'bg-white', 'text-slate-600');
+        appState.focus = btn.dataset.focus;
+      });
+    });
+
+    // Pametni generator plana učenja (čista klijentska logika)
+    function generateStudyPlan(subject, examDateStr, weeklyHours, focus) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const examDate = new Date(examDateStr + 'T00:00:00');
+      
+      const diffTime = examDate - today;
+      const daysLeft = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      const weeksLeft = daysLeft / 7;
+      const totalHours = Math.max(2, Math.round(weeksLeft * weeklyHours * 10) / 10);
+
+      // Izračunavanje datumskih okvira za svaku fazu
+      const getMilestoneLabel = (startPct, endPct) => {
+        const startDay = Math.floor(daysLeft * startPct);
+        const endDay = Math.max(startDay + 1, Math.ceil(daysLeft * endPct));
+        const d1 = new Date(today);
+        d1.setDate(today.getDate() + startDay);
+        const d2 = new Date(today);
+        d2.setDate(today.getDate() + Math.min(daysLeft - 1, endDay));
+        
+        const fmt = (d) => `${d.getDate()}.${d.getMonth() + 1}.`;
+        return startDay === endDay ? fmt(d1) : `${fmt(d1)} – ${fmt(d2)}`;
+      };
+
+      // Definisanje faza u zavisnosti od fokusa ispita
+      let templates = [];
+
+      if (focus === 'teorija') {
+        templates = [
+          {
+            phase: 'Faza 1 • Mapiranje gradiva',
+            title: `Prikupljanje literature, silabusa i podela ispitnih pitanja (${subject})`,
+            weight: 0.15,
+            period: getMilestoneLabel(0, 0.15)
+          },
+          {
+            phase: 'Faza 2 • Aktivno čitanje',
+            title: 'Prvo čitanje lekcija i izvlačenje ključnih definicija i koncepata',
+            weight: 0.30,
+            period: getMilestoneLabel(0.15, 0.45)
+          },
+          {
+            phase: 'Faza 3 • Sažimanje i beleške',
+            title: 'Izrada mentalnih mapa i kratkih skripti za najobimnije oblasti',
+            weight: 0.25,
+            period: getMilestoneLabel(0.45, 0.72)
+          },
+          {
+            phase: 'Faza 4 • Aktivno prisećanje',
+            title: 'Preslišavanje bez gledanja u beleške po ispitnim pitanjima',
+            weight: 0.20,
+            period: getMilestoneLabel(0.72, 0.90)
+          },
+          {
+            phase: 'Faza 5 • Finalna rekapitulacija',
+            title: 'Brzi pregled kritičnih tačaka i odmor pred sam ispit',
+            weight: 0.10,
+            period: getMilestoneLabel(0.90, 1.0)
+          }
+        ];
+      } else if (focus === 'prakticno') {
+        templates = [
+          {
+            phase: 'Faza 1 • Postavka i osnove',
+            title: `Pregled gradiva, alata i osnovnih šablona zadataka za ${subject}`,
+            weight: 0.15,
+            period: getMilestoneLabel(0, 0.15)
+          },
+          {
+            phase: 'Faza 2 • Vođeni primeri',
+            title: 'Prolazak kroz rešene primere sa vežbi i razumevanje postupka',
+            weight: 0.25,
+            period: getMilestoneLabel(0.15, 0.42)
+          },
+          {
+            phase: 'Faza 3 • Samostalna izrada',
+            title: 'Samostalno rešavanje zbirke zadataka / praktičnih projektnih zahteva',
+            weight: 0.35,
+            period: getMilestoneLabel(0.42, 0.78)
+          },
+          {
+            phase: 'Faza 4 • Prošli ispitni rokovi',
+            title: 'Rešavanje kompletnih rokova uz ograničeno vreme (simulacija)',
+            weight: 0.15,
+            period: getMilestoneLabel(0.78, 0.92)
+          },
+          {
+            phase: 'Faza 5 • Analiza grešaka',
+            title: 'Ponavljanje najčešćih grešaka i rubnih slučajeva pred ispit',
+            weight: 0.10,
+            period: getMilestoneLabel(0.92, 1.0)
+          }
+        ];
+      } else {
+        // Kombinovano (podrazumevano)
+        templates = [
+          {
+            phase: 'Faza 1 • Organizacija i pregled',
+            title: `Pregled celokupnog gradiva i podela lekcija za predmet ${subject}`,
+            weight: 0.15,
+            period: getMilestoneLabel(0, 0.15)
+          },
+          {
+            phase: 'Faza 2 • Dubinska obrada teorije',
+            title: 'Detaljno proučavanje ključnih lekcija i izrada sopstvenih beleški',
+            weight: 0.30,
+            period: getMilestoneLabel(0.15, 0.45)
+          },
+          {
+            phase: 'Faza 3 • Praktična primena i zadaci',
+            title: 'Vežbanje konkretnih primera, zadataka i studija slučaja',
+            weight: 0.30,
+            period: getMilestoneLabel(0.45, 0.75)
+          },
+          {
+            phase: 'Faza 4 • Simulacija ispita',
+            title: 'Rešavanje prethodnih ispitnih rokova i testiranje znanja pod vremenom',
+            weight: 0.15,
+            period: getMilestoneLabel(0.75, 0.92)
+          },
+          {
+            phase: 'Faza 5 • Završno ponavljanje',
+            title: 'Finalna rekapitulacija najvažnijih teza i priprema za ispitni dan',
+            weight: 0.10,
+            period: getMilestoneLabel(0.92, 1.0)
+          }
+        ];
+      }
+
+      const tasks = templates.map((item, idx) => {
+        const allocatedHours = Math.max(0.5, Math.round(totalHours * item.weight * 2) / 2);
+        return {
+          id: 'task_' + Date.now() + '_' + idx,
+          phase: item.phase,
+          title: item.title,
+          hours: allocatedHours,
+          period: item.period,
+          completed: false
+        };
+      });
+
+      return {
+        subject,
+        examDate: examDateStr,
+        weeklyHours,
+        focus,
+        daysLeft,
+        totalHours,
+        tasks
+      };
+    }
+
+    // Prikaz plana u interfejsu
+    function renderPlan() {
+      if (!appState.tasks || appState.tasks.length === 0) {
+        emptyState.classList.remove('hidden');
+        planContainer.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      planContainer.classList.remove('hidden');
+
+      // Popunjavanje zaglavlja
+      document.getElementById('planSubjectTitle').textContent = appState.subject;
+      document.getElementById('planExamDateText').innerHTML = `
+        <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        <span>Ispit: <strong>${formatDateSerbian(appState.examDate)}</strong></span>
+      `;
+
+      const focusLabels = {
+        kombinovano: 'Kombinovana priprema',
+        teorija: 'Teorijski ispit',
+        prakticno: 'Praktični zadaci / Kodiranje'
+      };
+      document.getElementById('planFocusBadge').textContent = focusLabels[appState.focus] || 'Plan učenja';
+
+      // Ponovno računanje dana do ispita
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const examDate = new Date(appState.examDate + 'T00:00:00');
+      const daysLeft = Math.max(1, Math.ceil((examDate - today) / (1000 * 60 * 60 * 24)));
+      const totalHours = appState.tasks.reduce((sum, t) => sum + (Number(t.hours) || 0), 0);
+      const dailyAvg = (totalHours / daysLeft).toFixed(1);
+
+      document.getElementById('metricDays').textContent = daysLeft;
+      document.getElementById('metricTotalHours').textContent = `${totalHours}h`;
+      document.getElementById('metricDailyAvg').textContent = `${dailyAvg}h`;
+
+      // Progress statistika
+      const completedCount = appState.tasks.filter(t => t.completed).length;
+      const totalCount = appState.tasks.length;
+      const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+      document.getElementById('progressPercent').textContent = `${percent}%`;
+      document.getElementById('progressCountText').textContent = `${completedCount} od ${totalCount} aktivnosti`;
+      document.getElementById('progressBarFill').style.width = `${percent}%`;
+
+      // Renderovanje kartica aktivnosti
+      tasksList.innerHTML = '';
+      appState.tasks.forEach((task) => {
+        const card = document.createElement('div');
+        card.className = `task-card group flex items-start gap-3.5 p-4 rounded-xl border cursor-pointer select-none ${
+          task.completed
+            ? 'bg-emerald-50/40 border-emerald-200/80'
+            : 'bg-white border-slate-200/90 hover:border-indigo-300 hover:shadow-xs'
+        }`;
+
+        card.innerHTML = `
+          <div class="pt-0.5">
+            <button
+              type="button"
+              aria-label="Označi aktivnost kao završenu"
+              class="w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${
+                task.completed
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                  : 'bg-slate-50 border-slate-300 group-hover:border-indigo-500 text-transparent'
+              }"
+            >
+              <i data-lucide="check" class="w-4 h-4 stroke-[2.5]"></i>
+            </button>
+          </div>
+          
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2 flex-wrap mb-1">
+              <span class="text-[11px] font-semibold uppercase tracking-wide ${
+                task.completed ? 'text-emerald-700' : 'text-indigo-600'
+              }">
+                ${escapeHtml(task.phase)}
+              </span>
+              <div class="flex items-center gap-2 text-xs text-slate-500">
+                ${task.period ? `<span class="bg-slate-100 px-2 py-0.5 rounded-md font-medium">${escapeHtml(task.period)}</span>` : ''}
+                <span class="font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">${task.hours}h</span>
+              </div>
+            </div>
+            
+            <p class="text-sm font-medium leading-snug transition-all ${
+              task.completed ? 'line-through text-slate-400' : 'text-slate-800'
+            }">
+              ${escapeHtml(task.title)}
+            </p>
+          </div>
+        `;
+
+        card.addEventListener('click', () => toggleTask(task.id));
+        tasksList.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Označavanje aktivnosti kao završene / nezavršene
+    function toggleTask(taskId) {
+      const task = appState.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      task.completed = !task.completed;
+      saveState();
+      renderPlan();
+
+      if (task.completed) {
+        const allDone = appState.tasks.every(t => t.completed);
+        if (allDone) {
+          showToast('Čestitamo! Sve aktivnosti su završene. Spreman/na si za ispit! 🎉', 'success');
+        } else {
+          showToast('Aktivnost označena kao završena!', 'success');
+        }
+      }
+    }
+
+    // Slanje glavne forme
+    studyForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const subject = subjectNameInput.value.trim();
+      const examDate = examDateInput.value;
+      const weeklyHours = Math.max(1, parseInt(weeklyHoursInput.value, 10) || 12);
+
+      // Validacija unosa
+      let isValid = true;
+      const subjectError = document.getElementById('subjectError');
+      const dateError = document.getElementById('dateError');
+
+      if (!subject) {
+        subjectError.classList.remove('hidden');
+        isValid = false;
+      } else {
+        subjectError.classList.add('hidden');
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const chosenDate = examDate ? new Date(examDate + 'T00:00:00') : null;
+
+      if (!chosenDate || chosenDate <= today) {
+        dateError.classList.remove('hidden');
+        isValid = false;
+      } else {
+        dateError.classList.add('hidden');
+      }
+
+      if (!isValid) return;
+
+      const generated = generateStudyPlan(subject, examDate, weeklyHours, appState.focus);
+      appState = { ...appState, ...generated };
+      
+      saveState();
+      renderPlan();
+      showToast(`Plan učenja za "${subject}" je uspešno kreiran!`, 'info');
+    });
+
+    // Dodavanje prilagođene aktivnosti
+    addCustomTaskForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = customTaskInput.value.trim();
+      if (!title) return;
+
+      appState.tasks.push({
+        id: 'custom_' + Date.now(),
+        phase: 'Dodatna aktivnost',
+        title: title,
+        hours: 2,
+        period: 'Po izboru',
+        completed: false
+      });
+
+      customTaskInput.value = '';
+      saveState();
+      renderPlan();
+      showToast('Dodata nova aktivnost u plan.', 'info');
+    });
+
+    // Brzi demo primer (za lakše testiranje prijave)
+    function loadDemoExample() {
+      const demoDate = new Date();
+      demoDate.setDate(demoDate.getDate() + 18);
+      const isoDemo = formatDateISO(demoDate);
+
+      subjectNameInput.value = 'Baze podataka i SQL';
+      examDateInput.value = isoDemo;
+      weeklyHoursSlider.value = 14;
+      weeklyHoursInput.value = 14;
+
+      // Aktiviraj 'prakticno' fokus dugme
+      focusButtons.forEach(b => {
+        if (b.dataset.focus === 'prakticno') {
+          b.click();
+        }
+      });
+
+      const generated = generateStudyPlan('Baze podataka i SQL', isoDemo, 14, 'prakticno');
+      // Označi prvu stavku kao završenu da se odmah vidi kako radi progress bar
+      generated.tasks[0].completed = true;
+      appState = { ...appState, ...generated };
+
+      saveState();
+      renderPlan();
+      showToast('Učitan demo primer za ispit "Baze podataka i SQL".', 'info');
+    }
+
+    document.getElementById('quickDemoBtn').addEventListener('click', loadDemoExample);
+
+    // Resetovanje aplikacije
+    document.getElementById('resetAllBtn').addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      appState = {
+        subject: '',
+        examDate: '',
+        weeklyHours: 12,
+        focus: 'kombinovano',
+        tasks: []
+      };
+      subjectNameInput.value = '';
+      initDefaultDates();
+      weeklyHoursSlider.value = 12;
+      weeklyHoursInput.value = 12;
+      renderPlan();
+      showToast('Plan je resetovan.', 'info');
+    });
+
+    // Čuvanje i učitavanje iz LocalStorage-a
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (err) {
+        console.warn('LocalStorage nije dostupan:', err);
+      }
+    }
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.tasks && parsed.tasks.length > 0) {
+            appState = parsed;
+            subjectNameInput.value = appState.subject || '';
+            if (appState.examDate) examDateInput.value = appState.examDate;
+            weeklyHoursSlider.value = appState.weeklyHours || 12;
+            weeklyHoursInput.value = appState.weeklyHours || 12;
+            
+            focusButtons.forEach(b => {
+              if (b.dataset.focus === appState.focus) {
+                b.classList.add('active', 'border-indigo-600', 'bg-indigo-50/70', 'text-indigo-700');
+                b.classList.remove('border-slate-200', 'bg-white', 'text-slate-600');
+              } else {
+                b.classList.remove('active', 'border-indigo-600', 'bg-indigo-50/70', 'text-indigo-700');
+                b.classList.add('border-slate-200', 'bg-white', 'text-slate-600');
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Greška pri učitavanju sačuvanog stanja:', err);
+      }
+    }
+
+    // Prikaz elegantnih toast poruka
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      const isSuccess = type === 'success';
+      toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium animate-fade-up ${
+        isSuccess
+          ? 'bg-emerald-900 text-white border-emerald-700'
+          : 'bg-slate-900 text-white border-slate-700'
+      }`;
+
+      toast.innerHTML = `
+        <i data-lucide="${isSuccess ? 'check-circle-2' : 'sparkles'}" class="w-4 h-4 ${isSuccess ? 'text-emerald-400' : 'text-indigo-400'} shrink-0"></i>
+        <span>${escapeHtml(message)}</span>
+      `;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(6px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+      }, 3000);
+    }
+
+    // Zaštita od XSS unosa
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // Pokretanje aplikacije
+    window.addEventListener('DOMContentLoaded', () => {
+      initDefaultDates();
+      loadState();
+      renderPlan();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
